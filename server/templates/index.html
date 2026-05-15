@@ -137,9 +137,9 @@ input,select,button{font-family:inherit}
     <div class="logo">🎥</div>
     <h1>AI DVR - نظام المراقبة</h1>
     <p>يرجى تسجيل الدخول</p>
-    <form id="loginForm" onsubmit="return doLogin(event)">
-      <input type="text" id="username" placeholder="اسم المستخدم" required>
-      <input type="password" id="password" placeholder="كلمة السر" required>
+    <form id="loginForm" method="post" action="/" onsubmit="return doLogin(event)">
+      <input type="text" id="username" name="username" placeholder="اسم المستخدم" required>
+      <input type="password" id="password" name="password" placeholder="كلمة السر" required>
       <button type="submit">دخول</button>
       <div class="error" id="loginError"></div>
     </form>

@@ -221,11 +221,11 @@ def init_cameras():
 @app.route("/", methods=["GET", "POST"])
 def index():
     authed = request.cookies.get("auth") == "1"
-    if request.method == "POST":
-        if request.form.get("username") == AUTH.get("username", "admin") and \
-           request.form.get("password") == AUTH.get("password", "admin"):
+    if not authed:
+        u = request.form.get("username") or request.args.get("username")
+        p = request.form.get("password") or request.args.get("password")
+        if u == AUTH.get("username", "admin") and p == AUTH.get("password", "admin"):
             authed = True
-
     resp = app.make_response(render_template("index.html", authed=authed))
     if authed and not request.cookies.get("auth"):
         resp.set_cookie("auth", "1")
