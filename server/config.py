@@ -1,16 +1,10 @@
 import os
 
 CAMERAS = [
-    {
-        "name": "الكاميرا 1",
-        "url": "rtsp://192.168.1.100:554/stream1",
-        "enabled": True,
-    },
-    {
-        "name": "الكاميرا 2",
-        "url": "rtsp://192.168.1.101:554/stream1",
-        "enabled": True,
-    },
+    {"name": "الكاميرا 1 - المدخل", "url": "http://localhost:8090/1", "enabled": True},
+    {"name": "الكاميرا 2 - الحديقة", "url": "http://localhost:8090/2", "enabled": True},
+    {"name": "الكاميرا 3 - المستودع", "url": "http://localhost:8090/3", "enabled": True},
+    {"name": "الكاميرا 4 - المواقف", "url": "http://localhost:8090/4", "enabled": True},
 ]
 
 SERVER = {

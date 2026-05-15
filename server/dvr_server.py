@@ -71,8 +71,46 @@ class CameraStream:
             self.cap.release()
 
     def _loop(self):
+        import urllib.request as _ur
+        t = 0
         while self.running:
             try:
+                if self.url.startswith("http://") or self.url.startswith("https://"):
+                    try:
+                        resp = _ur.urlopen(self.url, timeout=5)
+                        raw_bytes = b""
+                        while self.running:
+                            chunk = resp.read(4096)
+                            if not chunk:
+                                break
+                            raw_bytes += chunk
+                            start = raw_bytes.find(b"\xff\xd8")
+                            end = raw_bytes.find(b"\xff\xd9")
+                            if start != -1 and end != -1 and end > start:
+                                jpeg_data = raw_bytes[start:end+2]
+                                raw_bytes = raw_bytes[end+2:]
+                                raw = cv2.imdecode(np.frombuffer(jpeg_data, np.uint8), cv2.IMREAD_COLOR)
+                                if raw is not None:
+                                    self.online = True
+                                    processed = raw.copy()
+                                    if AIState.ai_enhance:
+                                        processed = self.enhancer.enhance(processed)
+                                    with self.lock:
+                                        self.raw_frame = raw
+                                        self.frame = processed
+                                    self.fps_counter += 1
+                                    now = time.time()
+                                    if now - self.last_fps_time >= 1:
+                                        self.current_fps = self.fps_counter
+                                        self.fps_counter = 0
+                                        self.last_fps_time = now
+                                time.sleep(0.03)
+                    except Exception:
+                        self.online = False
+                        resp = None
+                        time.sleep(2)
+                    continue
+
                 if self.cap is None or not self.cap.isOpened():
                     self.cap = cv2.VideoCapture(self.url)
                     if not self.cap.isOpened():

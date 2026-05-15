@@ -131,6 +131,7 @@ input,select,button{font-family:inherit}
 </head>
 <body>
 
+{% if not authed %}
 <div class="login-page" id="loginPage">
   <div class="login-box">
     <div class="logo">🎥</div>
@@ -144,7 +145,7 @@ input,select,button{font-family:inherit}
     </form>
   </div>
 </div>
-
+{% else %}
 <div class="app" id="app">
   <!-- TOP BAR -->
   <div class="top-bar">
@@ -547,5 +548,6 @@ document.addEventListener('keydown',e=>{
 // ============ INIT CHECK ============
 if(state.loginCookie) initApp();
 </script>
+{% endif %}
 </body>
 </html>
