@@ -131,7 +131,6 @@ input,select,button{font-family:inherit}
 </head>
 <body>
 
-{% if not authed %}
 <div class="login-page" id="loginPage">
   <div class="login-box">
     <div class="logo">🎥</div>
@@ -145,7 +144,7 @@ input,select,button{font-family:inherit}
     </form>
   </div>
 </div>
-{% else %}
+
 <div class="app" id="app">
   <!-- TOP BAR -->
   <div class="top-bar">
@@ -159,6 +158,7 @@ input,select,button{font-family:inherit}
     </div>
     <div class="top-right">
       <span class="top-clock" id="topClock"></span>
+      <button class="top-btn" onclick="showSystem()">📊 النظام</button>
       <span class="top-user" id="topUser" onclick="showSettings()">⚙️</span>
     </div>
   </div>
@@ -228,10 +228,31 @@ input,select,button{font-family:inherit}
       <div class="form-section">
         <h3>إعدادات التسجيل</h3>
         <div class="form-group">
-          <div><label>حفظ عند الحركة</label><select id="cfgRecordMotion"><option value="1">نعم</option><option value="0">لا</option></select></div>
+          <div><label>وضع التسجيل</label><select id="cfgRecordingMode"><option value="motion">عند الحركة</option><option value="continuous">مستمر 24/7</option><option value="schedule">مجدول</option><option value="off">معطل</option></select></div>
           <div><label>حساسية الحركة</label><input type="number" id="cfgMotionSensitivity" min="1000" max="50000"></div>
           <div><label>أيام الاحتفاظ</label><input type="number" id="cfgMaxDays" min="1" max="90"></div>
           <div><label>جودة الصورة (1-100)</label><input type="number" id="cfgJpegQuality" min="10" max="100"></div>
+          <div><label>بداية الجدول (ساعة)</label><input type="number" id="cfgScheduleStart" min="0" max="23"></div>
+          <div><label>نهاية الجدول (ساعة)</label><input type="number" id="cfgScheduleEnd" min="1" max="24"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <h3>إشعارات تيليجرام</h3>
+        <div class="form-group">
+          <div><label>تفعيل</label><select id="cfgTelegramEnabled"><option value="1">نعم</option><option value="0" selected>لا</option></select></div>
+          <div><label>Bot Token</label><input id="cfgTelegramToken" placeholder="123456:ABCdef..."></div>
+          <div><label>Chat ID</label><input id="cfgTelegramChatId" placeholder="-100123456789"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <h3>إشعارات الإيميل</h3>
+        <div class="form-group">
+          <div><label>تفعيل</label><select id="cfgEmailEnabled"><option value="1">نعم</option><option value="0" selected>لا</option></select></div>
+          <div><label>SMTP Server</label><input id="cfgEmailServer" placeholder="smtp.gmail.com"></div>
+          <div><label>SMTP Port</label><input type="number" id="cfgEmailPort" value="587"></div>
+          <div><label>من (البريد)</label><input id="cfgEmailFrom" placeholder="you@gmail.com"></div>
+          <div><label>إلى (البريد)</label><input id="cfgEmailTo" placeholder="alert@example.com"></div>
+          <div><label>كلمة السر SMTP</label><input type="password" id="cfgEmailPass" placeholder="App Password"></div>
         </div>
       </div>
       <div class="form-section">
@@ -252,8 +273,25 @@ input,select,button{font-family:inherit}
       </div>
     </div>
     <div class="modal-footer">
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn-secondary" onclick="exportConfig()">📤 تصدير</button>
+        <button class="btn-secondary" onclick="importConfig()">📥 استيراد</button>
+      </div>
       <button class="btn-secondary" onclick="closeSettings()">إلغاء</button>
       <button class="btn-primary" onclick="saveSettings()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- SYSTEM DASHBOARD MODAL -->
+<div class="modal-overlay" id="systemModal">
+  <div class="modal" style="width:500px">
+    <div class="modal-header">
+      <h2>📊 معلومات النظام</h2>
+      <button class="close-btn" onclick="closeSystem()">✕</button>
+    </div>
+    <div class="modal-body" id="systemBody">
+      <div style="text-align:center;color:var(--text2);padding:20px">جار التحميل...</div>
     </div>
   </div>
 </div>
@@ -268,6 +306,7 @@ let state = {
   aiState: {enhance:true,motion:true,super_res:false},
   selectedCam: null,
   ptzMode: false,
+  zoomLevel: 1,
   loginCookie: getCookie('auth') === '1'
 };
 
@@ -279,10 +318,8 @@ function doLogin(e){
   e.preventDefault();
   const f=new FormData(e.target);
   fetch('/',{method:'POST',body:new URLSearchParams(f),headers:{'Content-Type':'application/x-www-form-urlencoded'}})
-    .then(r=>r.text()).then(t=>{
-      if(t.includes('login')||t.includes('دخول')) document.getElementById('loginError').textContent='خطأ في اسم المستخدم أو كلمة السر';
-      else {state.loginCookie=true;initApp()}
-    });
+    .then(r=>{if(r.ok){state.loginCookie=true;initApp()}else{document.getElementById('loginError').textContent='خطأ في اسم المستخدم أو كلمة السر'}})
+    .catch(()=>{document.getElementById('loginError').textContent='خطأ في الاتصال'});
   return false;
 }
 
@@ -480,14 +517,24 @@ function downloadRecording(file){
 // ============ SETTINGS ============
 function showSettings(){
   fetch('/api/config').then(r=>r.json()).then(cfg=>{
-    document.getElementById('cfgRecordMotion').value=cfg.record_on_motion?1:0;
+    document.getElementById('cfgRecordingMode').value=cfg.recording_mode||'motion';
     document.getElementById('cfgMotionSensitivity').value=cfg.motion_sensitivity;
     document.getElementById('cfgMaxDays').value=cfg.max_days;
     document.getElementById('cfgJpegQuality').value=cfg.jpeg_quality;
+    document.getElementById('cfgScheduleStart').value=cfg.schedule_start||0;
+    document.getElementById('cfgScheduleEnd').value=cfg.schedule_end||24;
     document.getElementById('cfgAIEnhance').value=cfg.ai_enhance?1:0;
     document.getElementById('cfgAIMotion').value=cfg.ai_motion?1:0;
     document.getElementById('cfgAIQuality').value=cfg.ai_quality||2;
     document.getElementById('cfgProcessWidth').value=cfg.process_width||480;
+    document.getElementById('cfgTelegramEnabled').value=cfg.telegram_enabled?1:0;
+    document.getElementById('cfgTelegramToken').value=cfg.telegram_bot_token||'';
+    document.getElementById('cfgTelegramChatId').value=cfg.telegram_chat_id||'';
+    document.getElementById('cfgEmailEnabled').value=cfg.email_enabled?1:0;
+    document.getElementById('cfgEmailServer').value=cfg.email_smtp_server||'';
+    document.getElementById('cfgEmailPort').value=cfg.email_smtp_port||587;
+    document.getElementById('cfgEmailFrom').value=cfg.email_from||'';
+    document.getElementById('cfgEmailTo').value=cfg.email_to||'';
     document.getElementById('cfgUser').value=cfg.username||'admin';
 
     const camDiv=document.getElementById('cameraSettings');
@@ -523,14 +570,25 @@ function saveSettings(){
   }
   const body={
     cameras,
-    record_on_motion:document.getElementById('cfgRecordMotion').value==='1',
+    recording_mode:document.getElementById('cfgRecordingMode').value,
     motion_sensitivity:parseInt(document.getElementById('cfgMotionSensitivity').value),
     max_days:parseInt(document.getElementById('cfgMaxDays').value),
     jpeg_quality:parseInt(document.getElementById('cfgJpegQuality').value),
+    schedule_start:parseInt(document.getElementById('cfgScheduleStart').value),
+    schedule_end:parseInt(document.getElementById('cfgScheduleEnd').value),
     ai_enhance:document.getElementById('cfgAIEnhance').value==='1',
     ai_motion:document.getElementById('cfgAIMotion').value==='1',
     ai_quality:parseInt(document.getElementById('cfgAIQuality').value),
     process_width:parseInt(document.getElementById('cfgProcessWidth').value),
+    telegram_enabled:document.getElementById('cfgTelegramEnabled').value==='1',
+    telegram_bot_token:document.getElementById('cfgTelegramToken').value,
+    telegram_chat_id:document.getElementById('cfgTelegramChatId').value,
+    email_enabled:document.getElementById('cfgEmailEnabled').value==='1',
+    email_smtp_server:document.getElementById('cfgEmailServer').value,
+    email_smtp_port:parseInt(document.getElementById('cfgEmailPort').value),
+    email_from:document.getElementById('cfgEmailFrom').value,
+    email_to:document.getElementById('cfgEmailTo').value,
+    email_password:document.getElementById('cfgEmailPass').value,
     password:document.getElementById('cfgPass').value
   };
   fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
@@ -539,7 +597,77 @@ function saveSettings(){
     });
 }
 
-// ============ KEYBOARD ============
+// ============ SYSTEM ============
+async function showSystem(){
+  document.getElementById('systemModal').classList.add('show');
+  document.getElementById('systemBody').innerHTML='<div style="text-align:center;color:var(--text2);padding:20px">جار التحميل...</div>';
+  try{
+    const r=await fetch('/api/system');
+    const d=await r.json();
+    document.getElementById('systemBody').innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="sys-card"><div class="sys-label">⏱ مدة التشغيل</div><div class="sys-val">${d.uptime_str}</div></div>
+        <div class="sys-card"><div class="sys-label">📹 التسجيلات</div><div class="sys-val">${d.recordings_count}</div></div>
+        <div class="sys-card"><div class="sys-label">💾 حجم التسجيلات</div><div class="sys-val">${d.recordings_size_str}</div></div>
+        <div class="sys-card"><div class="sys-label">💿 القرص</div><div class="sys-val">${d.disk_free_str} / ${d.disk_total_str}</div></div>
+        <div class="sys-card" style="grid-column:1/-1"><div class="sys-label">استخدام القرص</div>
+          <div style="background:var(--bg);border-radius:10px;height:20px;overflow:hidden;margin-top:6px">
+            <div style="background:linear-gradient(90deg,var(--accent2),${d.disk_percent>80?'var(--red)':'var(--accent)'});width:${d.disk_percent}%;height:100%;border-radius:10px;transition:width 1s"></div>
+          </div>
+          <div style="text-align:center;font-size:11px;color:var(--text2);margin-top:4px">${d.disk_percent}% مستخدم</div>
+        </div>
+      </div>
+      <style>
+        .sys-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px}
+        .sys-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+        .sys-val{font-size:18px;font-weight:600;color:var(--accent)}
+      </style>`;
+  }catch(e){
+    document.getElementById('systemBody').innerHTML='<div style="color:var(--red);text-align:center;padding:20px">خطأ في تحميل المعلومات</div>';
+  }
+}
+function closeSystem(){document.getElementById('systemModal').classList.remove('show')}
+
+// ============ DIGITAL ZOOM ============
+document.addEventListener('wheel',function(e){
+  const cell=e.target.closest('.cell');
+  if(!cell||!e.ctrlKey)return;
+  e.preventDefault();
+  const img=cell.querySelector('img');
+  if(!img)return;
+  state.zoomLevel=Math.max(1,Math.min(5,state.zoomLevel+(e.deltaY>0?-0.1:0.1)));
+  img.style.transform='scale('+state.zoomLevel+')';
+  img.style.transformOrigin='center center';
+  img.style.transition='transform 0.1s';
+},{passive:false});
+
+// ============ EXPORT/IMPORT ============
+async function exportConfig(){
+  const r=await fetch('/api/config/export');
+  const d=await r.json();
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='dvr_config_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function importConfig(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json';
+  inp.onchange=async function(){
+    try{
+      const text=await inp.files[0].text();
+      const data=JSON.parse(text);
+      const r=await fetch('/api/config/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      const d=await r.json();
+      if(d.ok) showSettings();
+      else alert('فشل الاستيراد');
+    }catch(e){alert('ملف غير صحيح');}
+  };
+  inp.click();
+}
+
+// ============ DIGITAL ZOOM ============
 document.addEventListener('keydown',e=>{
   if(e.key==='f'||e.key==='F') toggleFullscreen();
   if(e.key>='1'&&e.key<='4') setLayout('1x1');
@@ -548,6 +676,5 @@ document.addEventListener('keydown',e=>{
 // ============ INIT CHECK ============
 if(state.loginCookie) initApp();
 </script>
-{% endif %}
 </body>
 </html>
