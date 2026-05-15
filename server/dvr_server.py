@@ -5,102 +5,33 @@ import os
 import json
 import datetime
 import numpy as np
-from flask import Flask, Response, jsonify, request, render_template_string
+from flask import Flask, Response, jsonify, request, render_template, send_file
 from config import CAMERAS, SERVER, AUTH
 from ai_enhancer import AIEnhancer, AIMotionDetector
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
+app.secret_key = os.urandom(16).hex()
 streams = {}
 recordings = {}
-
-HTML_PAGE = '''
-<!DOCTYPE html>
-<html dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI DVR - كاميرات</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif}
-body{background:#0a0a1a;color:#fff;padding:20px}
-h1{color:#00d2ff;margin-bottom:8px;font-size:22px}
-.sub{color:#666;font-size:13px;margin-bottom:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
-.cam-card{background:#16213e;border-radius:12px;overflow:hidden}
-.cam-card .header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
-.cam-card .name{font-weight:600;font-size:14px}
-.cam-card .badge{font-size:11px;padding:3px 10px;border-radius:20px}
-.badge.on{background:#0a3a0a;color:#0f0}
-.badge.off{background:#3a0a0a;color:#f44}
-.cam-card img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover;background:#000}
-.cam-card .footer{padding:8px 16px;display:flex;justify-content:space-between;font-size:11px;color:#666}
-.cam-card .ai-badge{background:linear-gradient(135deg, rgba(0,210,255,.15), rgba(124,58,237,.15));color:#00d2ff;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
-.login{max-width:400px;margin:100px auto;background:#16213e;padding:30px;border-radius:16px}
-.login h2{margin-bottom:16px}
-.login input{width:100%;padding:12px;margin:8px 0;background:#0a0a1a;border:1px solid #333;border-radius:8px;color:#fff}
-.login button{width:100%;padding:12px;background:#00d2ff;border:none;border-radius:8px;color:#000;font-weight:bold;cursor:pointer}
-.ai-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.ai-btn{padding:8px 16px;border-radius:20px;border:1px solid #333;background:transparent;color:#888;font-size:12px;cursor:pointer}
-.ai-btn.on{background:rgba(0,210,255,.1);border-color:#00d2ff33;color:#00d2ff}
-</style>
-</head>
-<body>
-{% if not authed %}
-<div class="login">
-<h2>تسجيل الدخول</h2>
-<form method="post">
-<input name="username" placeholder="اسم المستخدم" required>
-<input name="password" type="password" placeholder="كلمة السر" required>
-<button type="submit">دخول</button>
-</form>
-</div>
-{% else %}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-<h1>📹 AI DVR</h1>
-<span style="font-size:12px;color:#666">{{ cams|length }} كاميرات</span>
-</div>
-<div class="sub">🤖 AI Enhancement • Motion Detection • 24/7 Recording</div>
-<div class="ai-bar">
-<button class="ai-btn on" onclick="toggleAI('enhance')">✨ AI Enhance</button>
-<button class="ai-btn on" onclick="toggleAI('motion')">🎯 AI Motion</button>
-<button class="ai-btn" onclick="toggleAI('super_res')">🔍 Super Res</button>
-</div>
-<div class="grid">
-{% for cam in cams %}
-<div class="cam-card">
-<div class="header">
-<span class="name">{{ cam.name }}</span>
-<span><span class="badge {{ 'on' if cam.on else 'off' }}">{{ '● مباشر' if cam.on else '● معطل' }}</span></span>
-</div>
-{% if cam.on %}
-<img src="/stream/{{ cam.id }}" alt="{{ cam.name }}">
-<div class="footer"><span>⚡ {{ cam.fps }} FPS</span><span class="ai-badge">✦ AI</span></div>
-{% else %}
-<div style="padding:60px;text-align:center;color:#666">⚠️ الكاميرا غير متصلة</div>
-{% endif %}
-</div>
-{% endfor %}
-</div>
-<script>
-function toggleAI(feature) {
-  fetch('/api/ai/toggle/'+feature).then(r=>r.json()).then(d=>{
-    document.querySelectorAll('.ai-btn').forEach(b=>b.classList.remove('on'));
-    if(d.enhance) document.querySelectorAll('.ai-btn')[0].classList.add('on');
-    if(d.motion) document.querySelectorAll('.ai-btn')[1].classList.add('on');
-    if(d.super_res) document.querySelectorAll('.ai-btn')[2].classList.add('on');
-  });
-}
-</script>
-{% endif %}
-</body>
-</html>
-'''
 
 
 class AIState:
     ai_enhance = SERVER.get("ai_enhance", True)
     ai_super_res = SERVER.get("ai_super_res", False)
     ai_motion = SERVER.get("ai_motion", True)
+
+
+def config_data():
+    return {
+        "cameras": CAMERAS,
+        "record_on_motion": SERVER["record_on_motion"],
+        "motion_sensitivity": SERVER["motion_sensitivity"],
+        "max_days": SERVER["max_days"],
+        "jpeg_quality": SERVER.get("jpeg_quality", 75),
+        "ai_enhance": AIState.ai_enhance,
+        "ai_motion": AIState.ai_motion,
+        "username": AUTH.get("username", "admin"),
+    }
 
 
 class CameraStream:
@@ -155,7 +86,6 @@ class CameraStream:
                     continue
 
                 self.online = True
-
                 processed = raw.copy()
 
                 if AIState.ai_enhance:
@@ -247,7 +177,7 @@ def init_cameras():
         cam.start()
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
     authed = request.cookies.get("auth") == "1"
     if request.method == "POST":
@@ -255,10 +185,7 @@ def index():
            request.form.get("password") == AUTH.get("password", "admin"):
             authed = True
 
-    cams = [{"id": sid, "name": s.name, "on": s.online} for sid, s in streams.items()]
-    resp = app.make_response(render_template_string(
-        HTML_PAGE, authed=authed, cams=cams
-    ))
+    resp = app.make_response(render_template("index.html", authed=authed))
     if authed and not request.cookies.get("auth"):
         resp.set_cookie("auth", "1")
     return resp
@@ -346,6 +273,52 @@ def api_status():
     })
 
 
+@app.route("/api/config", methods=["GET", "POST"])
+def api_config():
+    if request.cookies.get("auth") != "1":
+        return jsonify({"error": "unauthorized"}), 401
+
+    if request.method == "GET":
+        return jsonify(config_data())
+
+    data = request.json
+    if not data:
+        return jsonify({"error": "no data"}), 400
+
+    if "password" in data and data["password"]:
+        AUTH["password"] = data["password"]
+
+    if "ai_enhance" in data:
+        AIState.ai_enhance = bool(data["ai_enhance"])
+    if "ai_motion" in data:
+        AIState.ai_motion = bool(data["ai_motion"])
+
+    for key in ("record_on_motion", "motion_sensitivity", "max_days", "jpeg_quality"):
+        if key in data:
+            SERVER[key] = data[key]
+
+    return jsonify({"ok": True, **config_data()})
+
+
+@app.route("/api/ptz/<int:cam_id>/<command>")
+def api_ptz(cam_id, command):
+    if request.cookies.get("auth") != "1":
+        return jsonify({"error": "unauthorized"}), 401
+    cam = streams.get(cam_id)
+    if not cam:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"ok": True, "command": command, "camera": cam_id})
+
+
+@app.route("/api/download/<path:filepath>")
+def api_download(filepath):
+    if request.cookies.get("auth") != "1":
+        return "غير مصرح", 401
+    if not os.path.exists(filepath):
+        return "الملف غير موجود", 404
+    return send_file(filepath, as_attachment=True)
+
+
 def cleanup_old():
     while True:
         time.sleep(3600)
@@ -366,5 +339,5 @@ if __name__ == "__main__":
     os.makedirs(SERVER["record_path"], exist_ok=True)
     init_cameras()
     threading.Thread(target=cleanup_old, daemon=True).start()
-    print(f"🚀 DVR Server running on http://{SERVER['host']}:{SERVER['port']}")
+    print(f"DVR Server running on http://{SERVER['host']}:{SERVER['port']}")
     app.run(host=SERVER["host"], port=SERVER["port"], debug=False, threaded=True)
