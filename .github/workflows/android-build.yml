@@ -3,12 +3,8 @@ name: Build Android DVR APK
 on:
   push:
     branches: [main]
-    paths:
-      - 'android/**'
   pull_request:
     branches: [main]
-    paths:
-      - 'android/**'
   workflow_dispatch:
 
 jobs:
