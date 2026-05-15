@@ -23,6 +23,9 @@ SERVER = {
     "ai_enhance": True,
     "ai_super_res": False,
     "ai_motion": True,
+    "ai_quality": 2,
+    "process_width": 480,
+    "frame_skip": 2,
     "jpeg_quality": 75,
 }
 

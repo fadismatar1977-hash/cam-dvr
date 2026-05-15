@@ -30,6 +30,9 @@ def config_data():
         "jpeg_quality": SERVER.get("jpeg_quality", 75),
         "ai_enhance": AIState.ai_enhance,
         "ai_motion": AIState.ai_motion,
+        "ai_quality": SERVER.get("ai_quality", 2),
+        "process_width": SERVER.get("process_width", 480),
+        "frame_skip": SERVER.get("frame_skip", 2),
         "username": AUTH.get("username", "admin"),
     }
 
@@ -49,7 +52,7 @@ class CameraStream:
         self.last_motion = 0
         self.recording = False
         self.record_writer = None
-        self.enhancer = AIEnhancer(enable_super_res=False)
+        self.enhancer = AIEnhancer(config=SERVER)
         self.motion_detector = AIMotionDetector(sensitivity=SERVER["motion_sensitivity"])
         self.fps_counter = 0
         self.last_fps_time = time.time()
@@ -293,9 +296,16 @@ def api_config():
     if "ai_motion" in data:
         AIState.ai_motion = bool(data["ai_motion"])
 
-    for key in ("record_on_motion", "motion_sensitivity", "max_days", "jpeg_quality"):
+    for key in ("record_on_motion", "motion_sensitivity", "max_days", "jpeg_quality",
+                 "ai_quality", "process_width", "frame_skip"):
         if key in data:
             SERVER[key] = data[key]
+
+    for s in streams.values():
+        s.enhancer.quality = SERVER.get("ai_quality", 2)
+        s.enhancer.process_width = SERVER.get("process_width", 480)
+        s.enhancer.frame_skip = SERVER.get("frame_skip", 2)
+        s.enhancer.enable_super_res = AIState.ai_super_res
 
     return jsonify({"ok": True, **config_data()})
 

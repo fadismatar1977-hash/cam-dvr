@@ -238,6 +238,8 @@ input,select,button{font-family:inherit}
         <div class="form-group">
           <div><label>تحسين الصورة</label><select id="cfgAIEnhance"><option value="1">مفعل</option><option value="0">معطل</option></select></div>
           <div><label>كشف الحركة</label><select id="cfgAIMotion"><option value="1">مفعل</option><option value="0">معطل</option></select></div>
+          <div><label>جودة المعالجة</label><select id="cfgAIQuality"><option value="1">خفيف (أسرع)</option><option value="2" selected>متوسط</option><option value="3">عالي (أبطأ)</option></select></div>
+          <div><label>قرار المعالجة</label><select id="cfgProcessWidth"><option value="360">360p (أسرع)</option><option value="480" selected>480p</option><option value="640">640p</option></select></div>
         </div>
       </div>
       <div class="form-section">
@@ -483,6 +485,8 @@ function showSettings(){
     document.getElementById('cfgJpegQuality').value=cfg.jpeg_quality;
     document.getElementById('cfgAIEnhance').value=cfg.ai_enhance?1:0;
     document.getElementById('cfgAIMotion').value=cfg.ai_motion?1:0;
+    document.getElementById('cfgAIQuality').value=cfg.ai_quality||2;
+    document.getElementById('cfgProcessWidth').value=cfg.process_width||480;
     document.getElementById('cfgUser').value=cfg.username||'admin';
 
     const camDiv=document.getElementById('cameraSettings');
@@ -524,6 +528,8 @@ function saveSettings(){
     jpeg_quality:parseInt(document.getElementById('cfgJpegQuality').value),
     ai_enhance:document.getElementById('cfgAIEnhance').value==='1',
     ai_motion:document.getElementById('cfgAIMotion').value==='1',
+    ai_quality:parseInt(document.getElementById('cfgAIQuality').value),
+    process_width:parseInt(document.getElementById('cfgProcessWidth').value),
     password:document.getElementById('cfgPass').value
   };
   fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
