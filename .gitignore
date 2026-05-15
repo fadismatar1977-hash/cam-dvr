@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Android
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+
+# Recordings
+server/recordings/*
+
+# Models
+server/models/*.pb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.env.local

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0a0a1a"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+        <EditText
+            android:id="@+id/server_url"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:hint="Server: http://192.168.1.50:5000"
+            android:text="http://"
+            android:textColor="#fff"
+            android:textColorHint="#666"
+            android:background="#16213e"
+            android:padding="12dp"
+            android:inputType="textUri" />
+        <Button
+            android:id="@+id/connect_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="اتصال"
+            android:backgroundTint="#0f3460"
+            android:textColor="#00d2ff"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="أدخل رابط السيرفر واضغط اتصال"
+        android:textColor="#888"
+        android:textSize="13sp"
+        android:layout_marginBottom="12dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/camera_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+    <WebView
+        android:id="@+id/stream_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+</LinearLayout>

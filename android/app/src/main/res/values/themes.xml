@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="CamDVR" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#0f3460</item>
+        <item name="colorPrimaryVariant">#16213e</item>
+        <item name="colorOnPrimary">#00d2ff</item>
+        <item name="colorSecondary">#00d2ff</item>
+        <item name="android:statusBarColor">#0a0a1a</item>
+    </style>
+</resources>
